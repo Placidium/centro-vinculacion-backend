@@ -1,0 +1,220 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model actividades {
+  id                        Int                         @id @default(autoincrement())
+  nombre                    String                      @db.VarChar(100)
+  tipo_actividad_id         Int
+  periodicidad              actividades_periodicidad
+  fecha_inicio              DateTime                    @db.Date
+  fecha_fin                 DateTime?                   @db.Date
+  cupo                      Int?
+  socio_comunitario_id      Int
+  proyecto_id               Int?
+  estado                    actividades_estado          @default(Programada)
+  fecha_creacion            DateTime?                   @default(now()) @db.Timestamp(0)
+  creado_por                Int
+  tipos_actividad           tipos_actividad             @relation(fields: [tipo_actividad_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "actividades_ibfk_1")
+  socios_comunitarios       socios_comunitarios         @relation(fields: [socio_comunitario_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "actividades_ibfk_2")
+  proyectos                 proyectos?                  @relation(fields: [proyecto_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "actividades_ibfk_3")
+  usuarios                  usuarios                    @relation(fields: [creado_por], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "actividades_ibfk_4")
+  actividades_beneficiarios actividades_beneficiarios[]
+  actividades_oferentes     actividades_oferentes[]
+  archivos                  archivos[]
+  citas                     citas[]
+
+  @@index([creado_por], map: "creado_por")
+  @@index([estado, fecha_inicio], map: "idx_actividades_estado")
+  @@index([proyecto_id], map: "proyecto_id")
+  @@index([socio_comunitario_id], map: "socio_comunitario_id")
+  @@index([tipo_actividad_id], map: "tipo_actividad_id")
+}
+
+model actividades_beneficiarios {
+  actividad_id    Int
+  beneficiario_id Int
+  actividades     actividades   @relation(fields: [actividad_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "actividades_beneficiarios_ibfk_1")
+  beneficiarios   beneficiarios @relation(fields: [beneficiario_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "actividades_beneficiarios_ibfk_2")
+
+  @@id([actividad_id, beneficiario_id])
+  @@index([beneficiario_id], map: "beneficiario_id")
+}
+
+model actividades_oferentes {
+  actividad_id Int
+  oferente_id  Int
+  actividades  actividades @relation(fields: [actividad_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "actividades_oferentes_ibfk_1")
+  oferentes    oferentes   @relation(fields: [oferente_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "actividades_oferentes_ibfk_2")
+
+  @@id([actividad_id, oferente_id])
+  @@index([oferente_id], map: "oferente_id")
+}
+
+model archivos {
+  id           Int         @id @default(autoincrement())
+  nombre       String      @db.VarChar(255)
+  ruta         String      @db.VarChar(255)
+  tipo         String      @db.VarChar(100)
+  tamano       Int
+  actividad_id Int
+  tipo_adjunto String      @db.VarChar(50)
+  descripcion  String?     @db.Text
+  fecha_carga  DateTime?   @default(now()) @db.Timestamp(0)
+  cargado_por  Int
+  actividades  actividades @relation(fields: [actividad_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "archivos_ibfk_1")
+  usuarios     usuarios    @relation(fields: [cargado_por], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "archivos_ibfk_2")
+
+  @@index([cargado_por], map: "cargado_por")
+  @@index([actividad_id, tipo_adjunto], map: "idx_archivos_actividad")
+}
+
+model beneficiarios {
+  id                        Int                         @id @default(autoincrement())
+  caracterizacion           String                      @db.VarChar(200)
+  activo                    Boolean?                    @default(true)
+  actividades_beneficiarios actividades_beneficiarios[]
+}
+
+model citas {
+  id                 Int          @id @default(autoincrement())
+  actividad_id       Int
+  lugar_id           Int
+  fecha              DateTime     @db.Date
+  hora_inicio        DateTime     @db.Time(0)
+  hora_fin           DateTime?    @db.Time(0)
+  estado             citas_estado @default(Programada)
+  motivo_cancelacion String?      @db.Text
+  fecha_creacion     DateTime?    @default(now()) @db.Timestamp(0)
+  creado_por         Int
+  actividades        actividades  @relation(fields: [actividad_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "citas_ibfk_1")
+  lugares            lugares      @relation(fields: [lugar_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "citas_ibfk_2")
+  usuarios           usuarios     @relation(fields: [creado_por], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "citas_ibfk_3")
+
+  @@index([creado_por], map: "creado_por")
+  @@index([actividad_id, fecha], map: "idx_citas_actividad")
+  @@index([fecha, hora_inicio], map: "idx_citas_fecha")
+  @@index([lugar_id, fecha, estado], map: "idx_citas_lugar_fecha")
+}
+
+model lugares {
+  id     Int      @id @default(autoincrement())
+  nombre String   @unique(map: "nombre") @db.VarChar(100)
+  cupo   Int?
+  activo Boolean? @default(true)
+  citas  citas[]
+}
+
+model oferentes {
+  id                    Int                     @id @default(autoincrement())
+  nombre                String                  @unique(map: "nombre") @db.VarChar(100)
+  docente_responsable   String                  @db.VarChar(100)
+  activo                Boolean?                @default(true)
+  actividades_oferentes actividades_oferentes[]
+}
+
+model permisos_usuario {
+  id                                               Int       @id @default(autoincrement())
+  usuario_id                                       Int
+  permiso                                          String    @db.VarChar(50)
+  fecha_asignacion                                 DateTime? @default(now()) @db.Timestamp(0)
+  asignado_por                                     Int?
+  usuarios_permisos_usuario_usuario_idTousuarios   usuarios  @relation("permisos_usuario_usuario_idTousuarios", fields: [usuario_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "permisos_usuario_ibfk_1")
+  usuarios_permisos_usuario_asignado_porTousuarios usuarios? @relation("permisos_usuario_asignado_porTousuarios", fields: [asignado_por], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "permisos_usuario_ibfk_2")
+
+  @@unique([usuario_id, permiso], map: "unique_user_permission")
+  @@index([asignado_por], map: "asignado_por")
+  @@index([usuario_id, permiso], map: "idx_permisos_usuario")
+}
+
+model proyectos {
+  id           Int           @id @default(autoincrement())
+  nombre       String        @unique(map: "nombre") @db.VarChar(100)
+  descripcion  String?       @db.Text
+  fecha_inicio DateTime      @db.Date
+  fecha_fin    DateTime?     @db.Date
+  activo       Boolean?      @default(true)
+  actividades  actividades[]
+}
+
+model socios_comunitarios {
+  id          Int           @id @default(autoincrement())
+  nombre      String        @unique(map: "nombre") @db.VarChar(100)
+  activo      Boolean?      @default(true)
+  actividades actividades[]
+}
+
+model tipos_actividad {
+  id          Int           @id @default(autoincrement())
+  nombre      String        @unique(map: "nombre") @db.VarChar(100)
+  descripcion String        @db.Text
+  activo      Boolean?      @default(true)
+  actividades actividades[]
+}
+
+model usuarios {
+  id                                                       Int                @id @default(autoincrement())
+  nombre                                                   String             @db.VarChar(100)
+  email                                                    String             @unique(map: "email") @db.VarChar(100)
+  password                                                 String             @db.VarChar(255)
+  fecha_creacion                                           DateTime?          @default(now()) @db.Timestamp(0)
+  ultimo_acceso                                            DateTime?          @db.Timestamp(0)
+  token_recuperacion                                       String?            @db.VarChar(255)
+  token_expiracion                                         DateTime?          @db.Timestamp(0)
+  actividades                                              actividades[]
+  archivos                                                 archivos[]
+  citas                                                    citas[]
+  permisos_usuario_permisos_usuario_usuario_idTousuarios   permisos_usuario[] @relation("permisos_usuario_usuario_idTousuarios")
+  permisos_usuario_permisos_usuario_asignado_porTousuarios permisos_usuario[] @relation("permisos_usuario_asignado_porTousuarios")
+  
+  auditorias                                               Auditoria[] // <-- Añadido aquí
+
+  @@index([email], map: "idx_usuarios_email")
+}
+
+model Auditoria {
+  id            Int      @id @default(autoincrement())
+  accion        String
+  entidad       String
+  registroId    Int?
+  descripcion   String?
+  usuarioId     Int?
+  fechaHora     DateTime @default(now())
+
+  usuario       usuarios? @relation(fields: [usuarioId], references: [id])
+
+  @@map("auditorias")
+}
+
+
+
+
+
+
+
+
+
+
+
+enum actividades_periodicidad {
+  Puntual
+  Peri_dica @map("Periódica")
+}
+
+enum citas_estado {
+  Programada
+  Cancelada
+  Completada
+}
+
+enum actividades_estado {
+  Programada
+  Cancelada
+  Completada
+}
