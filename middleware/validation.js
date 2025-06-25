@@ -15,13 +15,14 @@ const validateLogin = [
 ];
 
 // Validaciones para Registro - COMPLETAS según documentación
+// Validaciones para Registro - SIN rol
 const validateRegister = [
     body('nombre')
         .notEmpty()
         .withMessage('El nombre es obligatorio')
         .isLength({ min: 3 })
         .withMessage('El nombre debe tener al menos 3 caracteres')
-        .isLength({ max: 100 })  // ← NUEVA VALIDACIÓN
+        .isLength({ max: 100 })
         .withMessage('El nombre no puede exceder los 100 caracteres')
         .trim(),
 
@@ -32,9 +33,7 @@ const validateRegister = [
         .withMessage('Por favor, introduce un email válido')
         .normalizeEmail(),
 
-    body('rol')  // ← NUEVA VALIDACIÓN
-        .notEmpty()
-        .withMessage('El rol es obligatorio'),
+    // <-- SE ELIMINA VALIDACIÓN DEL ROL AQUÍ
 
     body('password')
         .notEmpty()
@@ -45,7 +44,7 @@ const validateRegister = [
         .withMessage('La contraseña debe incluir al menos una letra mayúscula, una minúscula y un número'),
 
     body('confirmarPassword')
-        .notEmpty()  // ← NUEVA VALIDACIÓN
+        .notEmpty()
         .withMessage('La confirmación de contraseña es obligatoria')
         .custom((value, { req }) => {
             if (value !== req.body.password) {
@@ -54,6 +53,7 @@ const validateRegister = [
             return true;
         }),
 ];
+
 
 // Validaciones para Recuperación de Contraseña
 const validateForgotPassword = [
@@ -481,6 +481,29 @@ const validateLugarExiste = async (req, res, next) => {
     }
 };
 
+const validateResetPassword = [
+    body('token')
+        .notEmpty()
+        .withMessage('El token es obligatorio'),
+
+    body('newPassword')
+        .notEmpty()
+        .withMessage('La nueva contraseña es obligatoria')
+        .isLength({ min: 6 })
+        .withMessage('La contraseña debe tener al menos 6 caracteres')
+        .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
+        .withMessage('La contraseña debe incluir al menos una letra mayúscula, una minúscula y un número'),
+
+    body('confirmPassword')
+        .notEmpty()
+        .withMessage('La confirmación de contraseña es obligatoria')
+        .custom((value, { req }) => {
+            if (value !== req.body.newPassword) {
+                throw new Error('Las contraseñas no coinciden');
+            }
+            return true;
+        }),
+];
 
 
 
@@ -495,4 +518,5 @@ module.exports = {
     validateCancelarActividad,
     validateReagendarActividad,
     validateLugarExiste,
+    validateResetPassword, // ← AGREGAR ESTA LÍNEA
 };

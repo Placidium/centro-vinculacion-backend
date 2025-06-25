@@ -2,7 +2,6 @@ generator client {
   provider = "prisma-client-js"
 }
 
-
 datasource db {
   provider = "mysql"
   url      = env("DATABASE_URL")
@@ -169,38 +168,27 @@ model usuarios {
   token_expiracion                                         DateTime?          @db.Timestamp(0)
   actividades                                              actividades[]
   archivos                                                 archivos[]
+  auditorias                                               Auditoria[]
   citas                                                    citas[]
   permisos_usuario_permisos_usuario_usuario_idTousuarios   permisos_usuario[] @relation("permisos_usuario_usuario_idTousuarios")
   permisos_usuario_permisos_usuario_asignado_porTousuarios permisos_usuario[] @relation("permisos_usuario_asignado_porTousuarios")
-  
-  auditorias                                               Auditoria[] // <-- Añadido aquí
 
   @@index([email], map: "idx_usuarios_email")
 }
 
 model Auditoria {
-  id            Int      @id @default(autoincrement())
-  accion        String
-  entidad       String
-  registroId    Int?
-  descripcion   String?
-  usuarioId     Int?
-  fechaHora     DateTime @default(now())
+  id          Int       @id @default(autoincrement())
+  accion      String
+  entidad     String
+  registroId  Int?
+  descripcion String?
+  usuarioId   Int?
+  fechaHora   DateTime  @default(now())
+  usuario     usuarios? @relation(fields: [usuarioId], references: [id])
 
-  usuario       usuarios? @relation(fields: [usuarioId], references: [id])
-
+  @@index([usuarioId], map: "auditorias_usuarioId_fkey")
   @@map("auditorias")
 }
-
-
-
-
-
-
-
-
-
-
 
 enum actividades_periodicidad {
   Puntual

@@ -146,8 +146,74 @@ const forgotPassword = async (req, res) => {
   }
 };
 
+// controllers/authController.js - AGREGAR ESTA FUNCIÓN
+
+const resetPassword = async (req, res) => {
+  try {
+    const { token, newPassword } = req.body;
+    
+    // Validación básica
+    if (!token || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'Token y nueva contraseña son obligatorios',
+        type: 'VALIDATION_ERROR'
+      });
+    }
+
+    const result = await authService.resetPassword(token, newPassword);
+    
+    res.json({
+      success: true,
+      message: result.message
+    });
+
+  } catch (error) {
+    console.error('Error en resetPassword:', error);
+    
+    if (error instanceof authService.AuthError) {
+      let statusCode = 400;
+      
+      switch (error.type) {
+        case 'INVALID_TOKEN':
+        case 'TOKEN_EXPIRED':
+          statusCode = 401;
+          break;
+        case 'USER_NOT_FOUND':
+          statusCode = 404;
+          break;
+        case 'VALIDATION_ERROR':
+          statusCode = 400;
+          break;
+        default:
+          statusCode = 500;
+      }
+      
+      return res.status(statusCode).json({
+        success: false,
+        message: error.message,
+        type: error.type
+      });
+    }
+    
+    res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor'
+    });
+  }
+};
+
+// AGREGAR A LAS EXPORTACIONES:
 module.exports = {
   register,
   login,
-  forgotPassword
+  forgotPassword,
+  resetPassword // ← AGREGAR ESTA LÍNEA
+};
+
+module.exports = {
+  register,
+  login,
+  forgotPassword,
+  resetPassword
 };

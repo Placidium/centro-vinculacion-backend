@@ -3,15 +3,15 @@ const lugarService = require('../services/lugarService');
 const lugaresController = {
   // GET /api/lugares
   obtenerTodos: async (req, res) => {
-    try {
-      const lugares = await lugarService.obtenerTodos();
-      console.log('[LugaresController] Lugares obtenidos');
-      res.status(200).json({ exito: true, datos: lugares });
-    } catch (error) {
-      console.error('[LugaresController] Error al obtener lugares:', error);
-      res.status(500).json({ exito: false, mensaje: 'No se pudieron obtener los lugares.' });
-    }
-  },
+  try {
+    const lugares = await lugarService.obtenerTodos();
+    console.log('[LugaresController] Lugares obtenidos');
+    res.status(200).json({ success: true, data: lugares });
+  } catch (error) {
+    console.error('[LugaresController] Error al obtener lugares:', error);
+    res.status(500).json({ success: false, message: 'No se pudieron obtener los lugares.' });
+  }
+},
 
   // GET /api/lugares/:id
   obtenerPorId: async (req, res) => {

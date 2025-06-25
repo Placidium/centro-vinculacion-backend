@@ -3,14 +3,14 @@
 const tipoActividadController = {
   // GET /api/tipos-actividad
   obtenerTodos: async (req, res) => {
-    try {
-      const tipos = await tipoActividadService.obtenerTodos();
-      res.status(200).json({ exito: true, datos: tipos });
-    } catch (error) {
-      console.error('[TipoActividadController] Error al obtener tipos:', error);
-      res.status(500).json({ exito: false, mensaje: 'No se pudieron obtener los tipos de actividad.' });
-    }
-  },
+  try {
+    const tipos = await tipoActividadService.obtenerTodos();
+    res.status(200).json({ success: true, data: tipos });
+  } catch (error) {
+    console.error('[TipoActividadController] Error al obtener tipos:', error);
+    res.status(500).json({ success: false, message: 'No se pudieron obtener los tipos de actividad.' });
+  }
+},
 
   // GET /api/tipos-actividad/:id
   obtenerPorId: async (req, res) => {
