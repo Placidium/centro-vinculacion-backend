@@ -2,11 +2,11 @@ const lugarService = require('../services/lugarService');
 
 const lugaresController = {
   // GET /api/lugares
-  obtenerTodos: async (req, res) => {
+obtenerTodos: async (req, res) => {
   try {
     const lugares = await lugarService.obtenerTodos();
     console.log('[LugaresController] Lugares obtenidos');
-    res.status(200).json({ success: true, data: lugares });
+    res.status(200).json({ success: true, datos: lugares }); // Cambiar 'data' por 'datos'
   } catch (error) {
     console.error('[LugaresController] Error al obtener lugares:', error);
     res.status(500).json({ success: false, message: 'No se pudieron obtener los lugares.' });
@@ -31,24 +31,35 @@ const lugaresController = {
   },
 
   // POST /api/lugares
-  crear: async (req, res) => {
-    const { nombre, cupo, activo } = req.body;
-    if (!nombre || typeof cupo !== 'number') {
-      return res.status(400).json({
+  // POST /api/lugares
+crear: async (req, res) => {
+  const { nombre, cupo, activo } = req.body;
+
+  if (!nombre || typeof cupo !== 'number') {
+    return res.status(400).json({
+      exito: false,
+      mensaje: 'El nombre y el cupo (número) son obligatorios.'
+    });
+  }
+
+  try {
+    const nuevoLugar = await lugarService.crear({ nombre, cupo, activo });
+    console.log('[LugaresController] Lugar creado:', nuevoLugar);
+    res.status(201).json({ exito: true, datos: nuevoLugar });
+  } catch (error) {
+    console.error('[LugaresController] Error al crear lugar:', error);
+
+    if (error.code === 409) {
+      return res.status(409).json({
         exito: false,
-        mensaje: 'El nombre y el cupo (número) son obligatorios.'
+        mensaje: error.message || 'Ya existe un lugar con ese nombre.'
       });
     }
 
-    try {
-      const nuevoLugar = await lugarService.crear({ nombre, cupo, activo });
-      console.log('[LugaresController] Lugar creado:', nuevoLugar);
-      res.status(201).json({ exito: true, datos: nuevoLugar });
-    } catch (error) {
-      console.error('[LugaresController] Error al crear lugar:', error);
-      res.status(500).json({ exito: false, mensaje: 'No se pudo crear el lugar.' });
-    }
-  },
+    res.status(500).json({ exito: false, mensaje: 'No se pudo crear el lugar.' });
+  }
+},
+
 
   // PUT /api/lugares/:id
   actualizar: async (req, res) => {

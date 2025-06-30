@@ -1,4 +1,4 @@
- const beneficiarioService = require('../services/beneficiarioService');
+const beneficiarioService = require('../services/beneficiarioService');
 
 const beneficiariosController = {
   // GET /api/beneficiarios
@@ -9,7 +9,7 @@ const beneficiariosController = {
       res.status(200).json({ exito: true, datos: beneficiarios });
     } catch (error) {
       console.error('[BeneficiariosController] Error al obtener beneficiarios:', error);
-      res.status(500).json({ exito: false, mensaje: 'No se pudieron obtener los beneficiarios.' });
+      res.status(500).json({ exito: false, message: 'No se pudieron obtener los beneficiarios.' });
     }
   },
 
@@ -20,33 +20,30 @@ const beneficiariosController = {
       const beneficiario = await beneficiarioService.obtenerPorId(id);
       if (!beneficiario) {
         console.log('[BeneficiariosController] Beneficiario no encontrado');
-        return res.status(404).json({ exito: false, mensaje: 'Beneficiario no encontrado.' });
+        return res.status(404).json({ exito: false, message: 'Beneficiario no encontrado.' });
       }
       console.log('[BeneficiariosController] Beneficiario encontrado:', beneficiario);
       res.status(200).json({ exito: true, datos: beneficiario });
     } catch (error) {
       console.error('[BeneficiariosController] Error al buscar beneficiario:', error);
-      res.status(500).json({ exito: false, mensaje: 'Error al buscar el beneficiario.' });
+      res.status(500).json({ exito: false, message: 'Error al buscar el beneficiario.' });
     }
   },
 
   // POST /api/beneficiarios
   crear: async (req, res) => {
-    const { caracterizacion, activo } = req.body;
-    if (!caracterizacion) {
-      return res.status(400).json({
-        exito: false,
-        mensaje: 'El campo "caracterizacion" es obligatorio.'
-      });
-    }
-
+    const { caracterizacion, activo = true } = req.body;
+    
     try {
-      const nuevoBeneficiario = await beneficiarioService.crear({ caracterizacion, activo });
+      const nuevoBeneficiario = await beneficiarioService.crear({ 
+        caracterizacion: caracterizacion.trim(), 
+        activo 
+      });
       console.log('[BeneficiariosController] Beneficiario creado:', nuevoBeneficiario);
       res.status(201).json({ exito: true, datos: nuevoBeneficiario });
     } catch (error) {
       console.error('[BeneficiariosController] Error al crear beneficiario:', error);
-      res.status(500).json({ exito: false, mensaje: 'No se pudo crear el beneficiario.' });
+      res.status(500).json({ exito: false, message: 'No se pudo crear el beneficiario.' });
     }
   },
 
@@ -56,12 +53,15 @@ const beneficiariosController = {
     const { caracterizacion, activo } = req.body;
 
     try {
-      const actualizado = await beneficiarioService.actualizar(id, { caracterizacion, activo });
+      const actualizado = await beneficiarioService.actualizar(id, { 
+        caracterizacion: caracterizacion.trim(), 
+        activo 
+      });
       console.log('[BeneficiariosController] Beneficiario actualizado:', actualizado);
       res.status(200).json({ exito: true, datos: actualizado });
     } catch (error) {
       console.error('[BeneficiariosController] Error al actualizar beneficiario:', error);
-      res.status(500).json({ exito: false, mensaje: 'No se pudo actualizar el beneficiario.' });
+      res.status(500).json({ exito: false, message: 'No se pudo actualizar el beneficiario.' });
     }
   },
 
@@ -72,13 +72,23 @@ const beneficiariosController = {
     try {
       await beneficiarioService.eliminar(id);
       console.log('[BeneficiariosController] Beneficiario eliminado:', id);
-      res.status(200).json({ exito: true, mensaje: 'Beneficiario eliminado correctamente.' });
+      res.status(200).json({ exito: true, message: 'Beneficiario eliminado correctamente.' });
     } catch (error) {
       console.error('[BeneficiariosController] Error al eliminar beneficiario:', error);
-      res.status(500).json({ exito: false, mensaje: 'No se pudo eliminar el beneficiario.' });
+      
+      // Si es un error de restricción de clave foránea
+      if (error.message.includes('foreign key constraint') || 
+          error.message.includes('being utilized') ||
+          error.code === 'P2003') {
+        res.status(400).json({ 
+          exito: false, 
+          message: 'No se puede eliminar porque está siendo utilizado en actividades.' 
+        });
+      } else {
+        res.status(500).json({ exito: false, message: 'No se pudo eliminar el beneficiario.' });
+      }
     }
   }
 };
 
 module.exports = beneficiariosController;
-

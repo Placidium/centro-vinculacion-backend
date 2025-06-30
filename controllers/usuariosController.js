@@ -76,7 +76,37 @@ const usuariosController = {
       console.error('Error al eliminar el usuario:', error);
       res.status(500).json({ success: false, message: 'Error interno al eliminar el usuario' });
     }
+  },
+
+
+
+// ✅ AGREGAR AQUÍ DENTRO
+  actualizarPermisos: async (req, res) => {
+    const usuarioId = parseInt(req.params.id);
+    const { permisos } = req.body;
+
+    if (!Array.isArray(permisos)) {
+      return res.status(400).json({ success: false, message: 'El campo "permisos" debe ser un array de strings' });
+    }
+
+    try {
+      await usuarioService.eliminarPermisos(usuarioId);
+      await usuarioService.asignarPermisos(usuarioId, permisos, req.usuario.id);
+
+      res.json({
+        success: true,
+        message: 'Permisos actualizados exitosamente',
+        permisos
+      });
+    } catch (error) {
+      console.error('Error al actualizar permisos:', error);
+      res.status(500).json({ success: false, message: 'Error interno al actualizar los permisos' });
+    }
   }
+
+
+
+  
 };
 
 module.exports = usuariosController;

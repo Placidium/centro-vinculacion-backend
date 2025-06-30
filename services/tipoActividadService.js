@@ -4,12 +4,13 @@ const prisma = new PrismaClient();
 class TipoActividadService {
   async obtenerTodos(activoSolo = true) {
     try {
-      const whereClause = activoSolo ? {} : undefined;
+      // CAMBIO: Filtrar correctamente por activos
+      const whereClause = activoSolo ? { activo: true } : {};
       const tipos = await prisma.tipos_actividad.findMany({
         where: whereClause,
         orderBy: { nombre: 'asc' }
       });
-      console.log('[TipoActividadService] Tipos de actividad obtenidos');
+      console.log('[TipoActividadService] Tipos de actividad obtenidos:', tipos.length);
       return tipos;
     } catch (error) {
       console.error('[TipoActividadService] Error al obtener tipos de actividad:', error);
@@ -21,15 +22,16 @@ class TipoActividadService {
     try {
       const tipo = await prisma.tipos_actividad.create({
         data: {
-          nombre: datos.nombre,
-          descripcion: datos.descripcion || null
+          nombre: datos.nombre.trim(),
+          descripcion: datos.descripcion ? datos.descripcion.trim() : '',
+          activo: true // Asegurar que se crea como activo
         }
       });
       console.log('[TipoActividadService] Tipo de actividad creado:', tipo);
       return tipo;
     } catch (error) {
-      console.error('[TipoActividadService] Error al crear tipo de actividad:', error);
-      throw new Error('Error al crear el tipo de actividad');
+       console.error('[TipoActividadService] Error al crear tipo de actividad:', error);
+        throw error;
     }
   }
 
@@ -38,8 +40,8 @@ class TipoActividadService {
       const tipo = await prisma.tipos_actividad.update({
         where: { id: parseInt(id) },
         data: {
-          nombre: datos.nombre,
-          descripcion: datos.descripcion || null
+          nombre: datos.nombre.trim(),
+          descripcion: datos.descripcion ? datos.descripcion.trim() : ''
         }
       });
       console.log('[TipoActividadService] Tipo de actividad actualizado:', tipo);
@@ -52,10 +54,12 @@ class TipoActividadService {
 
   async eliminar(id) {
     try {
-      const tipo = await prisma.tipos_actividad.delete({
-        where: { id: parseInt(id) }
+      // Soft delete - marcar como inactivo en lugar de eliminar
+      const tipo = await prisma.tipos_actividad.update({
+        where: { id: parseInt(id) },
+        data: { activo: false }
       });
-      console.log('[TipoActividadService] Tipo de actividad eliminado:', tipo);
+      console.log('[TipoActividadService] Tipo de actividad desactivado:', tipo);
       return tipo;
     } catch (error) {
       console.error('[TipoActividadService] Error al eliminar tipo de actividad:', error);

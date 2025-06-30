@@ -1,4 +1,4 @@
- const proyectoService = require('../services/proyectoService');
+const proyectoService = require('../services/proyectoService');
 
 const proyectosController = {
   // GET /api/proyectos
@@ -31,40 +31,57 @@ const proyectosController = {
   },
 
   // POST /api/proyectos
-  crear: async (req, res) => {
-    const { nombre, descripcion, fechaInicio, fechaFin, activo } = req.body;
+ // POST /api/proyectos
+crear: async (req, res) => {
+  const { nombre, descripcion, fecha_inicio, fecha_fin, activo } = req.body;
 
-    if (!nombre || !fechaInicio || !fechaFin) {
-      return res.status(400).json({
-        exito: false,
-        mensaje: 'Los campos "nombre", "fechaInicio" y "fechaFin" son obligatorios.'
-      });
-    }
+  console.log('[ProyectosController] Datos recibidos:', req.body);
 
-    try {
-      const nuevoProyecto = await proyectoService.crear({ nombre, descripcion, fechaInicio, fechaFin, activo });
-      console.log('[ProyectosController] Proyecto creado:', nuevoProyecto);
-      res.status(201).json({ exito: true, datos: nuevoProyecto });
-    } catch (error) {
-      console.error('[ProyectosController] Error al crear proyecto:', error);
-      res.status(500).json({ exito: false, mensaje: 'No se pudo crear el proyecto.' });
-    }
-  },
+  if (!nombre || !fecha_inicio || !fecha_fin) {
+    console.log('[ProyectosController] Faltan campos obligatorios');
+    return res.status(400).json({
+      exito: false,
+      mensaje: 'Los campos "nombre", "fecha_inicio" y "fecha_fin" son obligatorios.'
+    });
+  }
+
+  try {
+    const nuevoProyecto = await proyectoService.crear({
+      nombre,
+      descripcion,
+      fecha_inicio,
+      fecha_fin,
+      activo
+    });
+
+    console.log('[ProyectosController] Proyecto creado:', nuevoProyecto);
+    res.status(201).json({ exito: true, datos: nuevoProyecto });
+  } catch (error) {
+    console.error('[ProyectosController] Error al crear proyecto:', error);
+   res.status(400).json({ exito: false, mensaje: error.message || 'No se pudo crear el proyecto.' });
+
+  }
+},
+
+
+
 
   // PUT /api/proyectos/:id
-  actualizar: async (req, res) => {
-    const { id } = req.params;
-    const { nombre, descripcion, fechaInicio, fechaFin, activo } = req.body;
+// PUT /api/proyectos/:id
+actualizar: async (req, res) => {
+  const { id } = req.params;
+  const { nombre, descripcion, fecha_inicio, fecha_fin, activo } = req.body;
 
-    try {
-      const actualizado = await proyectoService.actualizar(id, { nombre, descripcion, fechaInicio, fechaFin, activo });
-      console.log('[ProyectosController] Proyecto actualizado:', actualizado);
-      res.status(200).json({ exito: true, datos: actualizado });
-    } catch (error) {
-      console.error('[ProyectosController] Error al actualizar proyecto:', error);
-      res.status(500).json({ exito: false, mensaje: 'No se pudo actualizar el proyecto.' });
-    }
-  },
+  try {
+    const actualizado = await proyectoService.actualizar(id, { nombre, descripcion, fecha_inicio, fecha_fin, activo });
+    console.log('[ProyectosController] Proyecto actualizado:', actualizado);
+    res.status(200).json({ exito: true, datos: actualizado });
+  } catch (error) {
+    console.error('[ProyectosController] Error al actualizar proyecto:', error);
+    res.status(500).json({ exito: false, mensaje: 'No se pudo actualizar el proyecto.' });
+  }
+},
+
 
   // DELETE /api/proyectos/:id
   eliminar: async (req, res) => {
@@ -82,4 +99,3 @@ const proyectosController = {
 };
 
 module.exports = proyectosController;
-

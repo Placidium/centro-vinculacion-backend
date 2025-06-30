@@ -165,6 +165,11 @@ const login = async (email, password) => {
       JWT_SECRET,
       { expiresIn: '8h' }
     );
+console.log('🔐 Login exitoso - Usuario:', {
+  id: usuario.id,
+  email: usuario.email,
+  permisos
+});
 
     console.log('LOGIN EXITOSO');
     return {

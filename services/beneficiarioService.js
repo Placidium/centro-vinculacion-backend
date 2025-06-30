@@ -5,6 +5,7 @@ class BeneficiarioService {
   async obtenerTodos() {
     try {
       const beneficiarios = await prisma.beneficiarios.findMany({
+        // Quitar el filtro where para mostrar todos (activos e inactivos)
         orderBy: { id: 'asc' }
       });
       console.log('[BeneficiarioService] Beneficiarios obtenidos');
@@ -20,7 +21,7 @@ class BeneficiarioService {
       const beneficiario = await prisma.beneficiarios.create({
         data: {
           caracterizacion: data.caracterizacion,
-          activo: data.activo
+          activo: data.activo ?? true
         }
       });
       console.log('[BeneficiarioService] Beneficiario creado:', beneficiario);
@@ -50,6 +51,15 @@ class BeneficiarioService {
 
   async eliminar(id) {
     try {
+      // Verificar si el beneficiario está siendo utilizado en actividades
+      const actividades = await prisma.actividades_beneficiarios.findMany({
+        where: { beneficiario_id: parseInt(id) }
+      });
+
+      if (actividades.length > 0) {
+        throw new Error('No se puede eliminar porque está siendo utilizado en actividades.');
+      }
+
       const beneficiario = await prisma.beneficiarios.delete({
         where: { id: parseInt(id) }
       });
@@ -57,7 +67,7 @@ class BeneficiarioService {
       return beneficiario;
     } catch (error) {
       console.error('[BeneficiarioService] Error al eliminar beneficiario:', error);
-      throw new Error('Error al eliminar el beneficiario');
+      throw error;
     }
   }
 

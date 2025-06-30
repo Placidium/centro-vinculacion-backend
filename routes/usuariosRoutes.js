@@ -23,4 +23,24 @@ router.put('/:id', authenticateToken, requirePermission('editar_usuario'), usuar
 // Eliminar un usuario
 router.delete('/:id', authenticateToken, requirePermission('eliminar_usuario'), usuariosController.eliminar);
 
+// Actualizar permisos de un usuario
+router.put(
+  '/:id/permisos',
+  authenticateToken,
+  requirePermission('gestionar_permisos'), // Puedes cambiar el nombre del permiso si usas otro
+  usuariosController.actualizarPermisos
+);
+
+// Solo para admin con permisos
+router.get('/permisos-disponibles', authenticateToken, requirePermission('gestionar_permisos'), (req, res) => {
+  const permisos = [
+    'ver_usuarios',
+    'crear_usuario',
+    'editar_usuario',
+    'eliminar_usuario',
+    'gestionar_permisos'
+  ];
+  res.json(permisos);
+});
+
 module.exports = router;

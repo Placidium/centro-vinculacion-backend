@@ -1,4 +1,4 @@
- const oferenteService = require('../services/oferenteService');
+const oferenteService = require('../services/oferenteService');
 
 const oferentesController = {
   // GET /api/oferentes
@@ -6,7 +6,7 @@ const oferentesController = {
     try {
       const oferentes = await oferenteService.obtenerTodos();
       console.log('[OferentesController] Lista de oferentes obtenida');
-      res.status(200).json({ exito: true, datos: oferentes });
+      res.status(200).json({ exito: true, data: oferentes }); // ✅ Cambiado de 'datos' a 'data'
     } catch (error) {
       console.error('[OferentesController] Error al obtener oferentes:', error);
       res.status(500).json({ exito: false, mensaje: 'No se pudieron obtener los oferentes.' });
@@ -23,7 +23,7 @@ const oferentesController = {
         return res.status(404).json({ exito: false, mensaje: 'Oferente no encontrado.' });
       }
       console.log('[OferentesController] Oferente encontrado:', oferente);
-      res.status(200).json({ exito: true, datos: oferente });
+      res.status(200).json({ exito: true, data: oferente });
     } catch (error) {
       console.error('[OferentesController] Error al buscar oferente:', error);
       res.status(500).json({ exito: false, mensaje: 'Error al buscar el oferente.' });
@@ -32,20 +32,17 @@ const oferentesController = {
 
   // POST /api/oferentes
   crear: async (req, res) => {
-    const { nombre, docenteResponsable, activo } = req.body;
-    if (!nombre || !docenteResponsable) {
-      return res.status(400).json({
-        exito: false,
-        mensaje: 'Los campos "nombre" y "docenteResponsable" son obligatorios.'
-      });
-    }
-
+    const { nombre, docente_responsable, activo = true } = req.body;
+    
     try {
-      const nuevoOferente = await oferenteService.crear({ nombre, docenteResponsable, activo });
+      const nuevoOferente = await oferenteService.crear({ nombre, docente_responsable, activo });
       console.log('[OferentesController] Oferente creado:', nuevoOferente);
-      res.status(201).json({ exito: true, datos: nuevoOferente });
+      res.status(201).json({ exito: true, data: nuevoOferente });
     } catch (error) {
       console.error('[OferentesController] Error al crear oferente:', error);
+      if (error.message.includes('Ya existe')) {
+        return res.status(409).json({ exito: false, mensaje: error.message });
+      }
       res.status(500).json({ exito: false, mensaje: 'No se pudo crear el oferente.' });
     }
   },
@@ -53,14 +50,17 @@ const oferentesController = {
   // PUT /api/oferentes/:id
   actualizar: async (req, res) => {
     const { id } = req.params;
-    const { nombre, docenteResponsable, activo } = req.body;
+    const { nombre, docente_responsable, activo } = req.body;
 
     try {
-      const actualizado = await oferenteService.actualizar(id, { nombre, docenteResponsable, activo });
+      const actualizado = await oferenteService.actualizar(id, { nombre, docente_responsable, activo });
       console.log('[OferentesController] Oferente actualizado:', actualizado);
-      res.status(200).json({ exito: true, datos: actualizado });
+      res.status(200).json({ exito: true, data: actualizado });
     } catch (error) {
       console.error('[OferentesController] Error al actualizar oferente:', error);
+      if (error.message.includes('Ya existe')) {
+        return res.status(409).json({ exito: false, mensaje: error.message });
+      }
       res.status(500).json({ exito: false, mensaje: 'No se pudo actualizar el oferente.' });
     }
   },

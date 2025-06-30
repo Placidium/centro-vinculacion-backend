@@ -6,8 +6,11 @@ const validateProyecto = require('../middleware/validateProyecto');
 // Rutas CRUD para Proyectos
 router.get('/', proyectosController.obtenerTodos);
 router.get('/:id', proyectosController.obtenerPorId);
-router.post('/', validateProyecto , proyectosController.crear);
-router.put('/:id', validateProyecto , proyectosController.actualizar);
+
+// 👇 Aquí usas el middleware pasando el modo correcto
+router.post('/', validateProyecto('crear'), proyectosController.crear);
+router.put('/:id', validateProyecto('actualizar'), proyectosController.actualizar);
+
 router.delete('/:id', proyectosController.eliminar);
 
 module.exports = router;

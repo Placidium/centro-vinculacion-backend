@@ -24,7 +24,7 @@ router.get('/reset-password', (req, res) => {
   if (!token) {
     return res.status(400).send(`
       <h1>Error</h1>
-      <p>Token no proporcionado</p>
+      <p>Token no proporcionado</p>z
       <a href="${process.env.FRONTEND_URL || 'http://localhost:3001'}">Volver al inicio</a>
     `);
   }

@@ -46,70 +46,137 @@ class ActividadService {
     }
   }
 
-  async crear(data) {
-    try {
-      const actividad = await prisma.actividades.create({
+ async crear(data) {
+  try {
+    // Primero crear la actividad
+    const actividad = await prisma.actividades.create({
+      data: {
+        nombre: data.nombre,
+        tipo_actividad_id: data.tipo_actividad_id,
+        periodicidad: data.periodicidad,
+        fecha_inicio: new Date(data.fecha_inicio),
+        fecha_fin: data.fecha_fin ? new Date(data.fecha_fin) : null,
+        cupo: data.cupo,
+        socio_comunitario_id: data.socio_comunitario_id,
+        proyecto_id: data.proyecto_id || null,
+        estado: data.estado || 'Programada',
+        fecha_creacion: new Date(),
+        creado_por: data.creado_por,
+      }
+    });
+
+    // Crear la cita asociada
+    if (data.lugar_id && data.hora_inicio) {
+      // CORRECCIÓN: Convertir las horas a DateTime completos
+      const fechaBase = data.fecha_inicio; // Usar la misma fecha de la actividad
+      
+      // Crear DateTime completo para hora_inicio
+      const horaInicioCompleta = new Date(`${fechaBase.split('T')[0]}T${data.hora_inicio}:00.000Z`);
+      
+      // Crear DateTime completo para hora_fin si existe
+      let horaFinCompleta = null;
+      if (data.hora_fin) {
+        horaFinCompleta = new Date(`${fechaBase.split('T')[0]}T${data.hora_fin}:00.000Z`);
+      }
+
+      await prisma.citas.create({
         data: {
-          nombre: data.nombre,
-          tipo_actividad_id: data.tipo_actividad_id,
-          periodicidad: data.periodicidad,
-          fecha_inicio: new Date(data.fecha_inicio),
-          fecha_fin: data.fecha_fin ? new Date(data.fecha_fin) : null,
-          cupo: data.cupo,
-          socio_comunitario_id: data.socio_comunitario_id,
-          proyecto_id: data.proyecto_id || null,
-          estado: data.estado || 'Programada', // asumiendo que es enum string
-          fecha_creacion: new Date(),
-          creado_por: data.creado_por,
-          // Relaciones muchos a muchos deben manejarse por separado
-        },
-        include: {
-          actividades_oferentes: true,
-          actividades_beneficiarios: true,
+          actividad_id: actividad.id,
+          lugar_id: data.lugar_id,
+          fecha: new Date(data.fecha_inicio),
+          hora_inicio: horaInicioCompleta,
+          hora_fin: horaFinCompleta,
+          estado: 'Programada',
+          creado_por: data.creado_por
         }
       });
-      console.log('[ActividadService] Actividad creada:', actividad);
-      return actividad;
-    } catch (error) {
-      console.error('[ActividadService] Error al crear actividad:', error);
-      throw new Error('Error al crear la actividad');
     }
+
+    // Crear relaciones con oferentes
+    if (data.oferentes_ids && data.oferentes_ids.length > 0) {
+      await prisma.actividades_oferentes.createMany({
+        data: data.oferentes_ids.map(oferente_id => ({
+          actividad_id: actividad.id,
+          oferente_id: oferente_id
+        }))
+      });
+    }
+
+    // Crear relaciones con beneficiarios
+    if (data.beneficiarios_ids && data.beneficiarios_ids.length > 0) {
+      await prisma.actividades_beneficiarios.createMany({
+        data: data.beneficiarios_ids.map(beneficiario_id => ({
+          actividad_id: actividad.id,
+          beneficiario_id: beneficiario_id
+        }))
+      });
+    }
+
+    // Retornar actividad completa
+    const actividadCompleta = await prisma.actividades.findUnique({
+      where: { id: actividad.id },
+      include: {
+        tipos_actividad: true,
+        socios_comunitarios: true,
+        proyectos: true,
+        actividades_oferentes: true,
+        actividades_beneficiarios: true,
+        citas: true
+      }
+    });
+
+    console.log('[ActividadService] Actividad creada:', actividadCompleta);
+    return actividadCompleta;
+  } catch (error) {
+    console.error('[ActividadService] Error al crear actividad:', error);
+    throw new Error('Error al crear la actividad');
   }
+}
 
   async actualizar(id, data) {
     try {
-      // Iniciar transacción para actualizar actividad y relaciones
       const resultado = await prisma.$transaction(async (tx) => {
+        // Verificar conflictos de horario si se proporcionan datos de cita
+        if (data.lugar_id && data.fecha_inicio && data.hora_inicio) {
+          const disponible = await this.verificarDisponibilidadLugar(
+            data.lugar_id, 
+            data.fecha_inicio, 
+            data.hora_inicio,
+            data.hora_fin,
+            id // Excluir la actividad actual
+          );
+          
+          if (!disponible.disponible) {
+            throw new Error(disponible.mensaje);
+          }
+        }
+
         // Actualizar la actividad principal
         const actividad = await tx.actividades.update({
           where: { id: parseInt(id) },
           data: {
             nombre: data.nombre,
-            tipo_actividad_id: data.tipoActividadId,
+            tipo_actividad_id: data.tipo_actividad_id,
             periodicidad: data.periodicidad,
-            fecha_inicio: new Date(data.fechaInicio),
-            fecha_fin: data.fechaFin ? new Date(data.fechaFin) : null,
+            fecha_inicio: data.fecha_inicio ? new Date(data.fecha_inicio) : undefined,
+            fecha_fin: data.fecha_fin ? new Date(data.fecha_fin) : null,
             cupo: data.cupo,
-            socio_comunitario_id: data.socioComunitarioId,
-            proyecto_id: data.proyectoId || null,
-            dias_aviso_previo: data.diasAvisoPrevio,
+            socio_comunitario_id: data.socio_comunitario_id,
+            proyecto_id: data.proyecto_id || null,
             estado: data.estado,
-            creado_por: data.creadoPor,
-            fecha_modificacion: new Date()
+            creado_por: data.creado_por,
           }
         });
 
         // Actualizar oferentes si se proporcionan
-        if (data.oferentesIds && Array.isArray(data.oferentesIds)) {
-          // Eliminar relaciones existentes
+        if (data.oferentes_ids && Array.isArray(data.oferentes_ids)) {
           await tx.actividades_oferentes.deleteMany({
             where: { actividad_id: parseInt(id) }
           });
 
-          // Crear nuevas relaciones
-          if (data.oferentesIds.length > 0) {
+          if (data.oferentes_ids.length > 0) {
             await tx.actividades_oferentes.createMany({
-              data: data.oferentesIds.map(oferenteId => ({
+              data: data.oferentes_ids.map(oferenteId => ({
                 actividad_id: parseInt(id),
                 oferente_id: parseInt(oferenteId)
               }))
@@ -118,21 +185,32 @@ class ActividadService {
         }
 
         // Actualizar beneficiarios si se proporcionan
-        if (data.beneficiariosIds && Array.isArray(data.beneficiariosIds)) {
-          // Eliminar relaciones existentes
+        if (data.beneficiarios_ids && Array.isArray(data.beneficiarios_ids)) {
           await tx.actividades_beneficiarios.deleteMany({
             where: { actividad_id: parseInt(id) }
           });
 
-          // Crear nuevas relaciones
-          if (data.beneficiariosIds.length > 0) {
+          if (data.beneficiarios_ids.length > 0) {
             await tx.actividades_beneficiarios.createMany({
-              data: data.beneficiariosIds.map(beneficiarioId => ({
+              data: data.beneficiarios_ids.map(beneficiarioId => ({
                 actividad_id: parseInt(id),
                 beneficiario_id: parseInt(beneficiarioId)
               }))
             });
           }
+        }
+
+        // Actualizar citas si se proporcionan datos de lugar/horario
+        if (data.lugar_id || data.hora_inicio) {
+          await tx.citas.updateMany({
+            where: { actividad_id: parseInt(id) },
+            data: {
+              lugar_id: data.lugar_id ? parseInt(data.lugar_id) : undefined,
+              fecha: data.fecha_inicio ? new Date(data.fecha_inicio) : undefined,
+              hora_inicio: data.hora_inicio ? new Date(`1970-01-01T${data.hora_inicio}`) : undefined,
+              hora_fin: data.hora_fin ? new Date(`1970-01-01T${data.hora_fin}`) : undefined,
+            }
+          });
         }
 
         return actividad;
@@ -142,51 +220,79 @@ class ActividadService {
       return resultado;
     } catch (error) {
       console.error('[ActividadService] Error al actualizar actividad:', error);
-      throw new Error('Error al actualizar la actividad');
+      throw error;
     }
   }
+
 
   async cancelar(id, motivo) {
-    try {
-      const resultado = await prisma.$transaction(async (tx) => {
-        const actividad = await tx.actividades.update({
-          where: { id: parseInt(id) },
-          data: {
-            estado: 'Cancelada',
-            motivo_cancelacion: motivo,
-            fecha_cancelacion: new Date(),
-            fecha_modificacion: new Date()
-          },
-          include: {
-            tipos_actividad: true,
-            socios_comunitarios: true,
-            proyectos: true
-          }
-        });
-
-        // Cancelar todas las citas asociadas a esta actividad
-        await tx.citas.updateMany({
-          where: {
-            actividad_id: parseInt(id),
-            estado: { not: 'Cancelada' } // Solo cancelar las que no estén ya canceladas
-          },
-          data: {
-            estado: 'Cancelada',
-            motivo_cancelacion: `Actividad cancelada: ${motivo}`,
-            fecha_cancelacion: new Date()
-          }
-        });
-
-        return actividad;
+  try {
+    const resultado = await prisma.$transaction(async (tx) => {
+      // Verificar que la actividad existe
+      const actividadExistente = await tx.actividades.findUnique({
+        where: { id: parseInt(id) }
       });
 
-      console.log('[ActividadService] Actividad cancelada:', resultado);
-      return resultado;
-    } catch (error) {
-      console.error('[ActividadService] Error al cancelar actividad:', error);
-      throw new Error('Error al cancelar la actividad');
-    }
+      if (!actividadExistente) {
+        throw new Error('Actividad no encontrada');
+      }
+
+      // Verificar que no esté ya cancelada
+      if (actividadExistente.estado === 'Cancelada') {
+        throw new Error('Esta actividad ya está cancelada');
+      }
+
+      // Verificar que no haya pasado la fecha
+      const fechaActual = new Date();
+      if (new Date(actividadExistente.fecha_inicio) < fechaActual) {
+        throw new Error('No se puede cancelar una actividad que ya ha ocurrido');
+      }
+
+      // Actualizar la actividad
+      const actividad = await tx.actividades.update({
+        where: { id: parseInt(id) },
+        data: {
+          estado: 'Cancelada'
+        },
+        include: {
+          tipos_actividad: true,
+          socios_comunitarios: true,
+          proyectos: true,
+          actividades_oferentes: {
+            include: {
+              oferentes: true
+            }
+          },
+          actividades_beneficiarios: {
+            include: {
+              beneficiarios: true
+            }
+          }
+        }
+      });
+
+      // Cancelar todas las citas asociadas a esta actividad
+      await tx.citas.updateMany({
+        where: {
+          actividad_id: parseInt(id),
+          estado: { not: 'Cancelada' }
+        },
+        data: {
+          estado: 'Cancelada',
+          motivo_cancelacion: `Actividad cancelada: ${motivo}`
+        }
+      });
+
+      return actividad;
+    });
+
+    console.log('[ActividadService] Actividad cancelada:', resultado);
+    return resultado;
+  } catch (error) {
+    console.error('[ActividadService] Error al cancelar actividad:', error);
+    throw error;
   }
+}
 
   async eliminar(id) {
     try {
@@ -275,29 +381,123 @@ async reagendar(id, data) {
     throw new Error('Error al reagendar la actividad');
   }
 }
-async verificarDisponibilidadLugar(lugarId, fecha, actividadExcluir = null) {
-  try {
-    const whereCondition = {
-      lugar_id: parseInt(lugarId),
-      fecha: new Date(fecha),
-      estado: { not: 'Cancelada' }
-    };
 
-    // Si hay una actividad a excluir (en caso de reagendamiento)
-    if (actividadExcluir) {
-      whereCondition.actividad_id = { not: parseInt(actividadExcluir) };
+async obtenerSugerenciasAlternativas(lugarId, fecha, horaInicio) {
+    // Implementar lógica para sugerir horarios/lugares alternativos
+    // CA-11: Sugerencias de horarios/lugares alternativos
+    try {
+      const sugerencias = [];
+      
+      // Sugerir otros horarios en el mismo lugar
+      const horasAlternativas = ['09:00', '11:00', '14:00', '16:00'];
+      for (const hora of horasAlternativas) {
+        if (hora !== horaInicio) {
+          const disponible = await this.verificarDisponibilidadLugar(lugarId, fecha, hora);
+          if (disponible.disponible) {
+            sugerencias.push({
+              tipo: 'horario',
+              lugar_id: lugarId,
+              fecha,
+              hora
+            });
+          }
+        }
+      }
+
+      // Sugerir otros lugares en el mismo horario
+      const otrosLugares = await prisma.lugares.findMany({
+        where: { 
+          activo: true,
+          id: { not: parseInt(lugarId) }
+        }
+      });
+
+      for (const lugar of otrosLugares) {
+        const disponible = await this.verificarDisponibilidadLugar(lugar.id, fecha, horaInicio);
+        if (disponible.disponible) {
+          sugerencias.push({
+            tipo: 'lugar',
+            lugar_id: lugar.id,
+            lugar_nombre: lugar.nombre,
+            fecha,
+            hora: horaInicio
+          });
+        }
+      }
+
+      return sugerencias.slice(0, 5); // Máximo 5 sugerencias
+    } catch (error) {
+      console.error('[ActividadService] Error al obtener sugerencias:', error);
+      return [];
     }
-
-    const citaExistente = await prisma.citas.findFirst({
-      where: whereCondition
-    });
-
-    return !citaExistente; // true si está disponible, false si está ocupado
-  } catch (error) {
-    console.error('[ActividadService] Error al verificar disponibilidad:', error);
-    throw new Error('Error al verificar la disponibilidad del lugar');
   }
-}
+
+
+
+
+
+async verificarDisponibilidadLugar(lugarId, fecha, horaInicio, horaFin, actividadExcluir = null) {
+    try {
+      const fechaCompleta = new Date(fecha);
+      const horaInicioCompleta = new Date(`${fecha}T${horaInicio}`);
+      const horaFinCompleta = horaFin ? new Date(`${fecha}T${horaFin}`) : null;
+
+      const whereCondition = {
+        lugar_id: parseInt(lugarId),
+        fecha: fechaCompleta,
+        estado: { not: 'Cancelada' },
+        OR: [
+          {
+            hora_inicio: {
+              gte: horaInicioCompleta,
+              lt: horaFinCompleta || horaInicioCompleta
+            }
+          },
+          {
+            hora_fin: {
+              gt: horaInicioCompleta,
+              lte: horaFinCompleta || horaInicioCompleta
+            }
+          }
+        ]
+      };
+
+      // Excluir la actividad actual si se está modificando
+      if (actividadExcluir) {
+        whereCondition.actividad_id = { not: parseInt(actividadExcluir) };
+      }
+
+      const citaConflicto = await prisma.citas.findFirst({
+        where: whereCondition,
+        include: {
+          actividades: true,
+          lugares: true
+        }
+      });
+
+      if (citaConflicto) {
+        const lugar = citaConflicto.lugares;
+        const fechaFormateada = citaConflicto.fecha.toLocaleDateString();
+        const horaInicioFormateada = citaConflicto.hora_inicio.toLocaleTimeString();
+        const horaFinFormateada = citaConflicto.hora_fin?.toLocaleTimeString();
+        
+        // CA-11: Mensaje específico de conflicto
+        const mensaje = `El lugar ${lugar.nombre} ya está ocupado el ${fechaFormateada} de ${horaInicioFormateada}${horaFinFormateada ? ` a ${horaFinFormateada}` : ''}`;
+        
+        return {
+          disponible: false,
+          mensaje,
+          sugerencias: await this.obtenerSugerenciasAlternativas(lugarId, fecha, horaInicio)
+        };
+      }
+
+      return { disponible: true };
+    } catch (error) {
+      console.error('[ActividadService] Error al verificar disponibilidad:', error);
+      throw new Error('Error al verificar la disponibilidad del lugar');
+    }
+  }
+
 
 
 

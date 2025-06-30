@@ -1,6 +1,10 @@
+const checkAuth = require('../middleware/checkAuth');
+const checkPermission = require('../middleware/checkPermission');
+
 const express = require('express');
 const router = express.Router();
 const actividadesController = require('../controllers/actividadesController');
+
 const {
     validateCrearActividad,
     validateModificarActividad,
@@ -17,6 +21,8 @@ router.get('/', actividadesController.obtenerTodas);
 router.get('/:id', actividadesController.obtenerPorId);
 
 router.post('/',
+    checkAuth,
+    checkPermission('crear_actividad'),
     validateCrearActividad,
     handleValidationErrors,
     validateRelacionesExisten,
@@ -24,7 +30,10 @@ router.post('/',
     actividadesController.crear
 );
 
+
 router.put('/:id',
+    checkAuth,
+    checkPermission('modificar_actividad'),
     validateModificarActividad,
     handleValidationErrors,
     validateRelacionesExisten,
@@ -32,10 +41,16 @@ router.put('/:id',
     actividadesController.actualizar
 );
 
-router.delete('/:id', actividadesController.eliminar);
-
+router.delete('/:id',
+    checkAuth,
+    checkPermission('eliminar_actividad'),
+    actividadesController.eliminar
+);
 // Cancelar actividad
-router.post('/:id/cancelar',
+// Cancelar actividad - cambiar de POST a PUT para ser más RESTful
+router.put('/:id/cancelar',
+    checkAuth,
+    checkPermission('cancelar_actividad'),
     validateCancelarActividad,
     handleValidationErrors,
     actividadesController.cancelar
@@ -43,6 +58,8 @@ router.post('/:id/cancelar',
 
 // Reagendar actividad
 router.post('/:id/reagendar',
+    checkAuth,
+    checkPermission('reagendar_actividad'),
     validateReagendarActividad,
     handleValidationErrors,
     validateLugarExiste,

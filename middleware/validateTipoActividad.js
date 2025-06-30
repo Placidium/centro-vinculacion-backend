@@ -1,6 +1,8 @@
 // middleware/validateTipoActividad.js
 
-const prisma = require('../utils/prisma');
+const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
+
 
 module.exports = async (req, res, next) => {
   const { nombre, descripcion } = req.body;
@@ -14,7 +16,8 @@ module.exports = async (req, res, next) => {
     return res.status(400).json({ message: 'El nombre no puede exceder los 100 caracteres' });
   }
 
-  const existente = await prisma.tipo_actividad.findFirst({
+const existente = await prisma.tipos_actividad.findFirst({
+
     where: { nombre: nombreLimpio }
   });
 

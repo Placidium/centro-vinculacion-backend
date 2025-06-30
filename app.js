@@ -25,7 +25,7 @@ const permisosUsuarioRoutes = require('./routes/permisosUsuarioRoutes');
 const reportesRoutes = require('./routes/reportesRoutes');
 const auditoriaRoutes = require('./routes/auditoriaRoutes');
 const authRoutes = require('./routes/authRoutes');  // Auth rutas
-
+const permisosDisponiblesRoutes = require('./routes/permisosDisponiblesRoutes');
 // Montar rutas
 app.use('/api/tipos-actividad', tipoActividadRoutes);
 app.use('/api/lugares', lugaresRoutes);
@@ -43,6 +43,7 @@ app.use('/api/permisos-usuario', permisosUsuarioRoutes);
 app.use('/api/reportes', reportesRoutes);
 app.use('/api/auditorias', auditoriaRoutes);
 app.use('/api/auth', authRoutes);
+app.use('/api', permisosDisponiblesRoutes);
 
 // Ruta raíz opcional
 app.get('/', (req, res) => {

@@ -1,14 +1,31 @@
 const express = require('express');
 const router = express.Router();
 const citasController = require('../controllers/citasController');
+const { authenticateToken } = require('../middleware/auth');
 
-// Rutas para Citas
-router.get('/', citasController.listar);                          // Listar todas las citas
-router.get('/:id', citasController.obtenerPorId);                 // Obtener cita por ID
-router.post('/', citasController.crear);                          // Crear nueva cita
-                 
-router.put('/:id/cancelar', citasController.cancelar);            // Cancelar una cita
-router.put('/:id/reagendar', citasController.reagendar);          // Reagendar cita
-router.delete('/:id', citasController.eliminar);                  // Eliminar cita
+const validateCrearCita = require('../middleware/validateCrearCita'); // ✅ Validación al crear
+const validateConflictosAgenda = require('../middleware/validateConflictosAgenda'); // ✅ Validación al reagendar
+
+// ✅ Aplicar middleware para proteger las rutas
+router.get('/', authenticateToken, citasController.listar);
+router.get('/:id', authenticateToken, citasController.obtenerPorId);
+
+router.post(
+  '/',
+  authenticateToken,
+  validateCrearCita, // ✅ Validación de campos + conflictos
+  citasController.crear
+);
+router.put('/:id', authenticateToken, citasController.actualizar);
+
+router.put(
+  '/:id/reagendar',
+  authenticateToken,
+  validateConflictosAgenda, // ✅ Validación de conflictos al reagendar
+  citasController.reagendar
+);
+
+router.put('/:id/cancelar', authenticateToken, citasController.cancelar);
+router.delete('/:id', authenticateToken, citasController.eliminar);
 
 module.exports = router;

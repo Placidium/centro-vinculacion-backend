@@ -15,24 +15,41 @@ class ProyectoService {
     }
   }
 
-  async crear(data) {
-    try {
-      const proyecto = await prisma.proyectos.create({
-        data: {
-          nombre: data.nombre,
-          descripcion: data.descripcion || null,
-          fecha_inicio: new Date(data.fechaInicio),
-          fecha_fin: new Date(data.fechaFin),
-          activo: data.activo
-        }
-      });
-      console.log('[ProyectoService] Proyecto creado:', proyecto);
-      return proyecto;
-    } catch (error) {
-      console.error('[ProyectoService] Error al crear proyecto:', error);
-      throw new Error('Error al crear el proyecto');
+async crear(data) {
+  try {
+    console.log('[DEBUG] Proyecto recibido en crear:', data);
+
+    const fechaInicioParsed = new Date(data.fecha_inicio);
+    const fechaFinParsed = data.fecha_fin ? new Date(data.fecha_fin) : null;
+
+    if (isNaN(fechaInicioParsed)) {
+      throw new Error('❌ fecha_inicio es inválida');
     }
+
+    if (fechaFinParsed && isNaN(fechaFinParsed)) {
+      throw new Error('❌ fecha_fin es inválida');
+    }
+
+    const proyecto = await prisma.proyectos.create({
+      data: {
+        nombre: data.nombre,
+        descripcion: data.descripcion || null,
+        fecha_inicio: fechaInicioParsed,
+        fecha_fin: fechaFinParsed,
+        activo: data.activo ?? true
+      }
+    });
+
+    console.log('[✅ Proyecto creado]', proyecto);
+    return proyecto;
+  } catch (error) {
+    console.error('[💥 Error al crear proyecto]:', error.message);
+    throw new Error(error.message || 'Error al crear proyecto');
   }
+}
+
+
+
 
   async actualizar(id, data) {
     try {
@@ -41,8 +58,9 @@ class ProyectoService {
         data: {
           nombre: data.nombre,
           descripcion: data.descripcion || null,
-          fecha_inicio: new Date(data.fechaInicio),
-          fecha_fin: new Date(data.fechaFin),
+        fecha_inicio: new Date(data.fecha_inicio),
+fecha_fin: new Date(data.fecha_fin),
+
           activo: data.activo
         }
       });

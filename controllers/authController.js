@@ -47,6 +47,12 @@ const login = async (req, res) => {
     const { email, password } = req.body;
     const result = await authService.login(email, password);
 
+console.log('📤 Login response enviada al cliente:', {
+  token: result.token.substring(0, 20) + '...', // por seguridad
+  user: result.user
+});
+
+
     res.json({
       success: true,
       message: 'Inicio de sesión exitoso',
@@ -55,6 +61,7 @@ const login = async (req, res) => {
     });
   } catch (error) {
     console.error('Error en login:', error);
+    
     
     // Manejar errores específicos de autenticación
     if (error instanceof authService.AuthError) {

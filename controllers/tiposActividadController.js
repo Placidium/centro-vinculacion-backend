@@ -1,16 +1,18 @@
- const tipoActividadService = require('../services/tipoActividadService');
+const tipoActividadService = require('../services/tipoActividadService');
 
 const tipoActividadController = {
   // GET /api/tipos-actividad
   obtenerTodos: async (req, res) => {
-  try {
-    const tipos = await tipoActividadService.obtenerTodos();
-    res.status(200).json({ success: true, data: tipos });
-  } catch (error) {
-    console.error('[TipoActividadController] Error al obtener tipos:', error);
-    res.status(500).json({ success: false, message: 'No se pudieron obtener los tipos de actividad.' });
-  }
-},
+    try {
+      const tipos = await tipoActividadService.obtenerTodos();
+      // CAMBIO: Usar 'exito' y 'datos' consistentemente
+      res.status(200).json({ exito: true, datos: tipos });
+    } catch (error) {
+      console.error('[TipoActividadController] Error al obtener tipos:', error);
+      // CAMBIO: Usar 'exito' y 'mensaje' consistentemente
+      res.status(500).json({ exito: false, mensaje: 'No se pudieron obtener los tipos de actividad.' });
+    }
+  },
 
   // GET /api/tipos-actividad/:id
   obtenerPorId: async (req, res) => {
@@ -33,7 +35,7 @@ const tipoActividadController = {
     if (!nombre) {
       return res.status(400).json({ exito: false, mensaje: 'El campo "nombre" es obligatorio.' });
     }
-
+    
     try {
       const nuevoTipo = await tipoActividadService.crear({ nombre, descripcion });
       res.status(201).json({ exito: true, datos: nuevoTipo });
@@ -47,10 +49,14 @@ const tipoActividadController = {
   actualizar: async (req, res) => {
     const { id } = req.params;
     const { nombre, descripcion } = req.body;
-
+    
+    if (!nombre) {
+      return res.status(400).json({ exito: false, mensaje: 'El campo "nombre" es obligatorio.' });
+    }
+    
     try {
-      const actualizado = await tipoActividadService.actualizar(id, { nombre, descripcion });
-      res.status(200).json({ exito: true, datos: actualizado });
+      const tipoActualizado = await tipoActividadService.actualizar(id, { nombre, descripcion });
+      res.status(200).json({ exito: true, datos: tipoActualizado });
     } catch (error) {
       console.error('[TipoActividadController] Error al actualizar tipo:', error);
       res.status(500).json({ exito: false, mensaje: 'No se pudo actualizar el tipo de actividad.' });
@@ -60,7 +66,7 @@ const tipoActividadController = {
   // DELETE /api/tipos-actividad/:id
   eliminar: async (req, res) => {
     const { id } = req.params;
-
+    
     try {
       await tipoActividadService.eliminar(id);
       res.status(200).json({ exito: true, mensaje: 'Tipo de actividad eliminado correctamente.' });

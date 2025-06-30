@@ -5,6 +5,7 @@ class OferenteService {
   async obtenerTodos() {
     try {
       const oferentes = await prisma.oferentes.findMany({
+        where: { activo: true }, // Solo oferentes activos
         orderBy: { nombre: 'asc' }
       });
       console.log('[OferenteService] Oferentes obtenidos');
@@ -19,15 +20,18 @@ class OferenteService {
     try {
       const oferente = await prisma.oferentes.create({
         data: {
-          nombre: data.nombre,
-          docente_responsable: data.docente_responsable,
-          activo: data.activo
+          nombre: data.nombre.trim(),
+          docente_responsable: data.docente_responsable.trim(),
+          activo: data.activo ?? true
         }
       });
       console.log('[OferenteService] Oferente creado:', oferente);
       return oferente;
     } catch (error) {
       console.error('[OferenteService] Error al crear oferente:', error);
+      if (error.code === 'P2002') {
+        throw new Error('Ya existe un oferente con este nombre');
+      }
       throw new Error('Error al crear el oferente');
     }
   }
@@ -37,8 +41,8 @@ class OferenteService {
       const oferente = await prisma.oferentes.update({
         where: { id: parseInt(id) },
         data: {
-          nombre: data.nombre,
-          docente_responsable: data.docente_responsable,
+          nombre: data.nombre?.trim(),
+          docente_responsable: data.docente_responsable?.trim(),
           activo: data.activo
         }
       });
@@ -46,16 +50,21 @@ class OferenteService {
       return oferente;
     } catch (error) {
       console.error('[OferenteService] Error al actualizar oferente:', error);
+      if (error.code === 'P2002') {
+        throw new Error('Ya existe un oferente con este nombre');
+      }
       throw new Error('Error al actualizar el oferente');
     }
   }
 
   async eliminar(id) {
     try {
-      const oferente = await prisma.oferentes.delete({
-        where: { id: parseInt(id) }
+      // Soft delete - marcar como inactivo en lugar de eliminar
+      const oferente = await prisma.oferentes.update({
+        where: { id: parseInt(id) },
+        data: { activo: false }
       });
-      console.log('[OferenteService] Oferente eliminado:', oferente);
+      console.log('[OferenteService] Oferente eliminado (soft delete):', oferente);
       return oferente;
     } catch (error) {
       console.error('[OferenteService] Error al eliminar oferente:', error);

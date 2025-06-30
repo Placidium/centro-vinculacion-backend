@@ -13,22 +13,53 @@ class LugarService {
     }
   }
 
-  async crear(data) {
-    try {
-      const lugar = await prisma.lugares.create({
-        data: {
-          nombre: data.nombre,
-          cupo: data.cupo,
-          activo: data.activo
-        }
-      });
-      console.log('[LugarService] Lugar creado:', lugar);
-      return lugar;
-    } catch (error) {
-      console.error('[LugarService] Error al crear lugar:', error);
-      throw new Error('Error al crear el lugar');
+async crear(data) {
+  try {
+    console.log('[LugarService] Datos recibidos:', data);
+
+    // Validaciones básicas
+    if (!data.nombre || typeof data.nombre !== 'string') {
+      throw new Error('Nombre inválido');
     }
+    if (typeof data.cupo !== 'number') {
+      throw new Error('Cupo debe ser un número');
+    }
+    if (typeof data.activo !== 'boolean') {
+      data.activo = true; // valor por defecto si no se entrega
+    }
+
+    // Verificar si ya existe un lugar con ese nombre (sin case-insensitive si no es compatible)
+    const existente = await prisma.lugares.findFirst({
+      where: {
+        nombre: data.nombre
+        // Elimina 'mode: insensitive' si usas SQLite
+      }
+    });
+
+    if (existente) {
+      const error = new Error('Ya existe un lugar con ese nombre.');
+      error.code = 409;
+      throw error;
+    }
+
+   const lugar = await prisma.lugares.create({
+  data: {
+    nombre: data.nombre,
+    cupo: data.cupo ?? undefined,     // Asegura compatibilidad con Int?
+    activo: data.activo ?? true       // Usa true si no viene definido
   }
+});
+
+
+    console.log('[LugarService] Lugar creado:', lugar);
+    return lugar;
+  } catch (error) {
+    console.error('[LugarService] Error al crear lugar:', error.message);
+    // Propaga el error con su código si es personalizado
+    if (error.code === 409) throw error;
+    throw new Error('Error al crear el lugar: ' + error.message);
+  }
+}
 
   async actualizar(id, data) {
     try {

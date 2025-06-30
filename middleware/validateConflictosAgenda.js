@@ -1,58 +1,90 @@
-// middleware/validateConflictosAgenda.js
-
-const prisma = require('../utils/prisma');
+const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
 
 module.exports = async (req, res, next) => {
   const {
-    lugarId,            // O el campo que uses para identificar el lugar
-    fechaInicio,
-    fechaFin
+    lugar_id,
+    fecha_inicio,
+    hora_inicio,
+    hora_fin
   } = req.body;
 
+  if (!lugar_id || !fecha_inicio || !hora_inicio) {
+    return next(); // Falta información esencial, no se puede validar
+  }
+
   try {
-    const inicio = new Date(fechaInicio);
-    const fin = new Date(fechaFin);
+    const actividadId = req.params.id;
 
-    if (isNaN(inicio) || isNaN(fin) || fin <= inicio) {
-      return res.status(400).json({ message: 'Las fechas son inválidas o incoherentes.' });
+    const horaInicioCompleta = new Date(`${fecha_inicio}T${hora_inicio}`);
+    const horaFinCompleta = hora_fin ? new Date(`${fecha_inicio}T${hora_fin}`) : null;
+
+    // Definimos el rango de fecha completa del día
+    const fechaInicioDia = new Date(`${fecha_inicio}T00:00:00`);
+    const fechaFinDia = new Date(`${fecha_inicio}T23:59:59`);
+
+    const whereCondition = {
+      lugar_id: parseInt(lugar_id),
+      fecha: {
+        gte: fechaInicioDia,
+        lte: fechaFinDia
+      },
+      estado: { not: 'Cancelada' }
+    };
+
+    if (actividadId) {
+      whereCondition.actividad_id = { not: parseInt(actividadId) };
     }
 
-    // Validar si el lugar ya está reservado
-    const lugarOcupado = await prisma.actividades.findFirst({
-      where: {
-        lugar_id: lugarId,
-        OR: [
-          {
-            fechaInicio: { lte: fin },
-            fechaFin: { gte: inicio }
+    if (horaFinCompleta) {
+      whereCondition.OR = [
+        {
+          hora_inicio: {
+            gte: horaInicioCompleta,
+            lt: horaFinCompleta
           }
-        ]
-      }
-    });
-
-    if (lugarOcupado) {
-      return res.status(409).json({ message: 'El lugar ya está reservado para esta fecha y hora' });
+        },
+        {
+          hora_fin: {
+            gt: horaInicioCompleta,
+            lte: horaFinCompleta
+          }
+        },
+        {
+          AND: [
+            { hora_inicio: { lte: horaInicioCompleta } },
+            { hora_fin: { gte: horaFinCompleta } }
+          ]
+        }
+      ];
     }
 
-    // Validar si hay otra actividad solapada (sin importar el lugar)
-    const actividadSolapada = await prisma.actividades.findFirst({
-      where: {
-        OR: [
-          {
-            fechaInicio: { lte: fin },
-            fechaFin: { gte: inicio }
-          }
-        ]
-      }
+    const citaConflicto = await prisma.citas.findFirst({
+      where: whereCondition,
+      include: { lugares: true }
     });
 
-    if (actividadSolapada) {
-      return res.status(409).json({ message: 'Ya existe otra actividad programada para esta fecha y hora' });
+    if (citaConflicto) {
+      const lugar = citaConflicto.lugares;
+      const fechaFormateada = citaConflicto.fecha.toLocaleDateString();
+      const horaInicioFormateada = citaConflicto.hora_inicio.toLocaleTimeString();
+      const horaFinFormateada = citaConflicto.hora_fin?.toLocaleTimeString();
+
+      const mensaje = `El lugar ${lugar.nombre} ya está ocupado el ${fechaFormateada} de ${horaInicioFormateada}${horaFinFormateada ? ` a ${horaFinFormateada}` : ''}`;
+
+      return res.status(409).json({
+        exito: false,
+        mensaje,
+        codigo: 'CONFLICTO_HORARIO'
+      });
     }
 
     next();
   } catch (error) {
     console.error('[Middleware ConflictosAgenda] Error al validar conflictos:', error);
-    res.status(500).json({ message: 'Error al validar conflictos de agenda' });
+    res.status(500).json({
+      exito: false,
+      mensaje: 'Error al validar conflictos de agenda'
+    });
   }
 };

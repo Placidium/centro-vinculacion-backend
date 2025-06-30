@@ -1,28 +1,34 @@
-// middleware/validateOferente.js
-
 const prisma = require('../utils/prisma');
 
 module.exports = async (req, res, next) => {
-  const { nombre, docenteResponsable } = req.body;
+  const { nombre, docente_responsable } = req.body;
+  const { id } = req.params; // Para actualizaciones
 
   // Validación: nombre obligatorio
   if (!nombre || nombre.trim() === '') {
-    return res.status(400).json({ message: 'El nombre del oferente es obligatorio' });
+    return res.status(400).json({ exito: false, mensaje: 'El nombre del oferente es obligatorio' });
   }
 
   // Validación: nombre no duplicado
   const nombreLimpio = nombre.trim();
+  const whereClause = { nombre: nombreLimpio };
+  
+  // Si es una actualización, excluir el registro actual
+  if (id) {
+    whereClause.id = { not: parseInt(id) };
+  }
+
   const yaExiste = await prisma.oferentes.findFirst({
-    where: { nombre: nombreLimpio }
+    where: whereClause
   });
 
   if (yaExiste) {
-    return res.status(409).json({ message: 'Ya existe un oferente con este nombre' });
+    return res.status(409).json({ exito: false, mensaje: 'Ya existe un oferente con este nombre' });
   }
 
   // Validación: docente responsable obligatorio
-  if (!docenteResponsable || docenteResponsable.trim() === '') {
-    return res.status(400).json({ message: 'El docente responsable es obligatorio' });
+  if (!docente_responsable || docente_responsable.trim() === '') {
+    return res.status(400).json({ exito: false, mensaje: 'El docente responsable es obligatorio' });
   }
 
   next();

@@ -7,16 +7,35 @@ class PermisosUsuarioService extends BaseService {
   }
 
   async obtenerPorUsuario(usuarioId) {
-    try {
-      return await prisma.permisos_usuario.findMany({
-        where: { usuario_id: parseInt(usuarioId) },
-        include: { usuarios_permisos_usuario_usuario_idTousuarios: true }
-      });
-    } catch (error) {
-      console.error('Error al obtener permisos por usuario:', error);
-      throw new Error('No se pudieron obtener los permisos');
-    }
+  try {
+    return await prisma.permisos_usuario.findMany({
+      where: { usuario_id: parseInt(usuarioId) },
+      select: { permiso: true } // 🔥 esto es lo que necesitas
+    });
+  } catch (error) {
+    console.error('Error al obtener permisos por usuario:', error);
+    throw new Error('No se pudieron obtener los permisos');
   }
+}
+
+async actualizarPermisos(usuarioId, listaPermisos) {
+  try {
+    // Eliminar permisos actuales
+    await this.eliminarTodosPorUsuario(usuarioId);
+
+    // Crear nuevos permisos
+    const data = listaPermisos.map(p => ({
+      usuario_id: parseInt(usuarioId),
+      permiso: p
+    }));
+
+    // Inserción masiva
+    return await prisma.permisos_usuario.createMany({ data });
+  } catch (error) {
+    console.error('Error al actualizar permisos:', error);
+    throw new Error('No se pudieron actualizar los permisos');
+  }
+}
 
   async eliminarTodosPorUsuario(usuarioId) {
     try {
